@@ -24,11 +24,25 @@ namespace LibraryAPI.Controllers
         [HttpGet]
         public async Task<IActionResult> GetBooks()
         {
-            _response.Result = _db.Books.Include(b => b.Author).ToList();
+            List<BookResponseDto> books = await _db.Books
+                .Include(b => b.Author)
+                .GroupJoin(
+                    _db.BookCategories,
+                    book => book.Id,
+                    bookCategory => bookCategory.BookId,
+                    (book, bookCategories) => new { Book = book, Categories = bookCategories.Select(bc => bc.Category) }
+                )
+                .Select(result => new BookResponseDto
+                {
+                    Book = result.Book,
+                    Categories = result.Categories.ToList()
+                })
+                .ToListAsync();
+
+            _response.Result = books;
             _response.StatusCode = HttpStatusCode.OK;
             return Ok(_response);
         }
-
         [HttpGet("{id:int}", Name = "GetBook")]
         public async Task<IActionResult> GetBook(int id)
         {
@@ -39,7 +53,20 @@ namespace LibraryAPI.Controllers
                 return BadRequest(_response);
             }
 
-            Book book = _db.Books.Include(b => b.Author).FirstOrDefault(b => b.Id == id);
+            BookResponseDto? book = await _db.Books.Include(b => b.Author)
+                .GroupJoin(
+                    _db.BookCategories,
+                    book => book.Id,
+                    bookCategory => bookCategory.BookId,
+                    (book, bookCategories) => new { Book = book, Categories = bookCategories.Select(bc => bc.Category) }
+                )
+                .Where(b => b.Book.Id == id)
+                .Select(result => new BookResponseDto
+                {
+                    Book = result.Book,
+                    Categories = result.Categories.ToList()
+                }).FirstOrDefaultAsync();
+
             if (book == null)
             {
                 _response.StatusCode = HttpStatusCode.NotFound;
