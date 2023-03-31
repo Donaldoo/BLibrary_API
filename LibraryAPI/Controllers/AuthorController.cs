@@ -92,5 +92,83 @@ namespace LibraryAPI.Controllers
             }
             return _response;
         }
+
+        [HttpPut("{id:int}")]
+        public async Task<ActionResult<ApiResponse>> UpdateAuthor(int id, [FromForm] AuthorUpdateDTO authorUpdateDTO)
+        {
+            try
+            {
+                if (ModelState.IsValid)
+                {
+                    if (authorUpdateDTO == null || id != authorUpdateDTO.Id)
+                    {
+                        _response.StatusCode = HttpStatusCode.BadRequest;
+                        _response.IsSuccess = false;
+                        return BadRequest();
+                    }
+
+                    Author authorFromDb = await _db.Authors.FindAsync(id);
+                    if (authorFromDb == null)
+                    {
+                        _response.StatusCode = HttpStatusCode.BadRequest;
+                        _response.IsSuccess = false;
+                        return BadRequest();
+                    }
+                    authorFromDb.Name = authorUpdateDTO.Name;
+                    authorFromDb.Bio = authorUpdateDTO.Bio;
+                    authorFromDb.CreatedAt = DateTime.UtcNow;
+                    authorFromDb.CreatedBy = "temporary";
+
+                    _db.Authors.Update(authorFromDb);
+                    _db.SaveChanges();
+                    _response.StatusCode = HttpStatusCode.NoContent;
+                    return Ok(_response);
+
+                }
+                else
+                {
+                    _response.IsSuccess = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.ErrorMessages = new List<string> { ex.ToString() };
+            }
+            return _response;
+        }
+
+        [HttpDelete("{id:int}")]
+        public async Task<ActionResult<ApiResponse>> DeleteAuthor(int id)
+        {
+            try
+            {
+                if (id == 0)
+                {
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+                    _response.IsSuccess = false;
+                    return BadRequest();
+                }
+
+                Author authorFromDb = await _db.Authors.FindAsync(id);
+                if (authorFromDb == null)
+                {
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+                    _response.IsSuccess = false;
+                    return BadRequest();
+                }
+
+                _db.Authors.Remove(authorFromDb);
+                _db.SaveChanges();
+                _response.StatusCode = HttpStatusCode.NoContent;
+                return Ok(_response);
+            }
+            catch (Exception ex)
+            {
+                _response.IsSuccess=false;
+                _response.ErrorMessages = new List<string> { ex.ToString() };
+            }
+            return _response;
+        }
     }
 }

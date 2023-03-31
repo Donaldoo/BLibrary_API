@@ -1,4 +1,7 @@
-﻿namespace LibraryAPI.Models.Dto
+﻿using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
+using Newtonsoft.Json;
+
+namespace LibraryAPI.Models.Dto
 {
     public class AuthorUpdateDTO
     {

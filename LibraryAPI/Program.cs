@@ -1,3 +1,4 @@
+using Azure.Storage.Blobs;
 using LibraryAPI.Data;
 using LibraryAPI.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -17,6 +18,12 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultSqlConnection"));
 });
+
+
+builder.Services.AddSingleton(u => new BlobServiceClient(
+    builder.Configuration.GetConnectionString("StorageAccount")));
+
+builder.Services.AddSingleton<IBlobService, BlobService>();
 
 
 
