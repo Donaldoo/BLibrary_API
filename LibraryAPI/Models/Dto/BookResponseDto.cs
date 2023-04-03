@@ -2,6 +2,10 @@
 
 public class BookResponseDto
 {
-    public Book Book { get; set; }
-    public List<Category> Categories { get; set; }
+    public string Name { get; set; }
+    public string Description { get; set; }
+    public string CreatedBy { get; set; }
+    public int AuthorId { get; set; }
+    public IFormFile File { get; set; }
+    public int[] CategoryId { get; set; }
 }

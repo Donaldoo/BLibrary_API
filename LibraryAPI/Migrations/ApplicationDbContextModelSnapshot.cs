@@ -103,8 +103,9 @@ namespace LibraryAPI.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                    b.Property<string>("CreatedAt")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
@@ -130,8 +131,9 @@ namespace LibraryAPI.Migrations
                     b.Property<int>("AuthorId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                    b.Property<string>("CreatedAt")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
@@ -158,17 +160,25 @@ namespace LibraryAPI.Migrations
 
             modelBuilder.Entity("LibraryAPI.Models.BookCategory", b =>
                 {
-                    b.Property<int>("BookId")
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    b.Property<int>("CategoryId")
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("BookId")
                         .HasColumnType("int");
 
-                    b.HasKey("BookId", "CategoryId");
+                    b.Property<int?>("CategoryId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookId");
 
                     b.HasIndex("CategoryId");
 
-                    b.ToTable("BookCategories");
+                    b.ToTable("BookCategory");
                 });
 
             modelBuilder.Entity("LibraryAPI.Models.Category", b =>
@@ -179,8 +189,9 @@ namespace LibraryAPI.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                    b.Property<string>("CreatedAt")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
@@ -348,14 +359,12 @@ namespace LibraryAPI.Migrations
                     b.HasOne("LibraryAPI.Models.Book", "Book")
                         .WithMany("BookCategories")
                         .HasForeignKey("BookId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("LibraryAPI.Models.Category", "Category")
                         .WithMany("BookCategories")
                         .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Book");
 

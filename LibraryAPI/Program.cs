@@ -1,6 +1,7 @@
 using Azure.Storage.Blobs;
 using LibraryAPI.Data;
 using LibraryAPI.Models;
+using LibraryAPI.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -58,10 +59,14 @@ builder.Services.AddAuthentication(u =>
 builder.Services.AddCors();
 
 
-builder.Services.AddControllers().AddJsonOptions(options =>
+builder.Services.AddControllers().AddNewtonsoftJson(options =>
 {
-    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve;
+    options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
 });
+//.AddJsonOptions(options =>
+//{
+//    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve;
+//});
 
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

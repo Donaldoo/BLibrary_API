@@ -36,7 +36,7 @@ namespace LibraryAPI.Controllers
         public async Task<IActionResult> Login([FromBody] LoginRequestDTO model)
         {
             ApplicationUser userFromDb = _db.ApplicationUsers
-                .FirstOrDefault(u => u.UserName.ToLower() == model.UserName.ToLower());
+                .FirstOrDefault(u => u.Email.ToLower() == model.Email.ToLower());
 
             bool isValid = await _userManager.CheckPasswordAsync(userFromDb, model.Password);
 
@@ -92,7 +92,7 @@ namespace LibraryAPI.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequestDTO model)
         {
-            ApplicationUser userFromDb = _db.ApplicationUsers.FirstOrDefault(u => u.UserName.ToLower() == model.UserName.ToLower());
+            ApplicationUser userFromDb = _db.ApplicationUsers.FirstOrDefault(u => u.UserName.ToLower() == model.Email.ToLower());
 
             if (userFromDb != null)
             {
@@ -104,9 +104,9 @@ namespace LibraryAPI.Controllers
 
             ApplicationUser newUser = new()
             {
-                UserName = model.UserName,
-                Email = model.UserName,
-                NormalizedEmail = model.UserName.ToUpper(),
+                UserName = model.Email,
+                Email = model.Email,
+                NormalizedEmail = model.Email.ToUpper(),
                 Name = model.Name
             };
 

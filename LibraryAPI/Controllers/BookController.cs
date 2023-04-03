@@ -1,6 +1,8 @@
 ﻿using LibraryAPI.Data;
 using LibraryAPI.Models;
 using LibraryAPI.Models.Dto;
+using LibraryAPI.Services;
+using LibraryAPI.Utility;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,36 +15,29 @@ namespace LibraryAPI.Controllers
     public class BookController : ControllerBase
     {
         private readonly ApplicationDbContext _db;
+        private readonly IBlobService _blobService;
         private ApiResponse _response;
 
-        public BookController(ApplicationDbContext db)
+        public BookController(ApplicationDbContext db, IBlobService blobService)
         {
             _db = db;
+            _blobService = blobService;
             _response = new ApiResponse();
         }
 
         [HttpGet]
         public async Task<IActionResult> GetBooks()
         {
-            List<BookResponseDto> books = await _db.Books
-                .Include(b => b.Author)
-                .GroupJoin(
-                    _db.BookCategories,
-                    book => book.Id,
-                    bookCategory => bookCategory.BookId,
-                    (book, bookCategories) => new { Book = book, Categories = bookCategories.Select(bc => bc.Category) }
-                )
-                .Select(result => new BookResponseDto
-                {
-                    Book = result.Book,
-                    Categories = result.Categories.ToList()
-                })
+            var books = await _db.Books
+                .Include(b => b.BookCategories)
+                .ThenInclude(c => c.Category)
                 .ToListAsync();
 
             _response.Result = books;
             _response.StatusCode = HttpStatusCode.OK;
             return Ok(_response);
         }
+
         [HttpGet("{id:int}", Name = "GetBook")]
         public async Task<IActionResult> GetBook(int id)
         {
@@ -53,19 +48,10 @@ namespace LibraryAPI.Controllers
                 return BadRequest(_response);
             }
 
-            BookResponseDto? book = await _db.Books.Include(b => b.Author)
-                .GroupJoin(
-                    _db.BookCategories,
-                    book => book.Id,
-                    bookCategory => bookCategory.BookId,
-                    (book, bookCategories) => new { Book = book, Categories = bookCategories.Select(bc => bc.Category) }
-                )
-                .Where(b => b.Book.Id == id)
-                .Select(result => new BookResponseDto
-                {
-                    Book = result.Book,
-                    Categories = result.Categories.ToList()
-                }).FirstOrDefaultAsync();
+            var book = await _db.Books
+                .Include(b => b.BookCategories)
+                .ThenInclude(c => c.Category)
+                .FirstOrDefaultAsync(b => b.Id == id);
 
             if (book == null)
             {
@@ -79,32 +65,61 @@ namespace LibraryAPI.Controllers
         }
 
 
+        [HttpGet("{id}/categories")]
+        public async Task<ActionResult<IEnumerable<Category>>> GetBookCategories(int id)
+        {
+            var book = await _db.Books
+                .Include(b => b.BookCategories)
+                .ThenInclude(bc => bc.Category)
+                .FirstOrDefaultAsync(b => b.Id == id);
+
+            if (book == null )
+            {
+                return NotFound();
+            }
+            var categories = book.BookCategories.Select(c => c.Category).ToList();
+            return Ok(categories);
+        }
+
+
         [HttpPost]
-        public async Task<ActionResult<ApiResponse>> CreateBook([FromForm] BookCreateDTO bookCreateDTO)
+        public async Task<ActionResult<ApiResponse>> CreateBook([FromForm] BookResponseDto bookResponseDto)
         {
             try
             {
                 if (ModelState.IsValid)
                 {
-                    if (bookCreateDTO == null)
+                    if (bookResponseDto == null)
                     {
                         _response.StatusCode = HttpStatusCode.BadRequest;
                         _response.IsSuccess = false;
                         return BadRequest();
                     }
-                    Book bookToCreate = new()
+
+                    string filename = $"{Guid.NewGuid()}{Path.GetExtension(bookResponseDto.File.FileName)}";
+
+                    var book = new Book()
                     {
-                        Name = bookCreateDTO.Name,
-                        Description = bookCreateDTO.Description,
-                        Image = bookCreateDTO.Image,
-                        CreatedBy = "admin",
-                        AuthorId = bookCreateDTO.AuthorId
+                        Name = bookResponseDto.Name,
+                        Description = bookResponseDto.Description,
+                        Image = await _blobService.UploadBlob(filename, SD.SD_Storage_Container, bookResponseDto.File),
+                        CreatedAt = DateTime.UtcNow.ToString("dddd, dd MMMM yyyy"),
+                        CreatedBy = bookResponseDto.CreatedBy,
+                        AuthorId = bookResponseDto.AuthorId
                     };
-                    _db.Books.Add(bookToCreate);
+                    foreach (var item in bookResponseDto.CategoryId)
+                    {
+                        book.BookCategories.Add(new BookCategory()
+                        {
+                            Book = book,
+                            CategoryId = item,
+                        });
+                    }
+                    _db.Books.Add(book);
                     _db.SaveChanges();
-                    _response.Result = bookToCreate;
+                    _response.Result = book;
                     _response.StatusCode = HttpStatusCode.Created;
-                    return CreatedAtRoute("GetBook", new { id = bookToCreate.Id }, _response);
+                    return CreatedAtRoute("GetBook", new { id = book.Id }, _response);
                 }
                 else
                 {
@@ -116,8 +131,114 @@ namespace LibraryAPI.Controllers
                 _response.IsSuccess = false;
                 _response.ErrorMessages = new List<string>() { ex.Message };
             }
-            return _response;
+            return Ok(_response);
         }
 
+        [HttpPut("{id:int}")]
+        public async Task<ActionResult<ApiResponse>> UpdateBook(int id, [FromBody] BookResponseDto bookResponseDto)
+        {
+            if (id == 0)
+            {
+                _response.StatusCode = HttpStatusCode.BadRequest;
+                _response.IsSuccess = false;
+                return BadRequest(_response);
+            }
+            var book = await _db.Books
+                .Include(b => b.BookCategories)
+                .ThenInclude(c => c.Category)
+                .FirstOrDefaultAsync(b => b.Id == id);
+            if (book == null)
+            {
+                _response.StatusCode = HttpStatusCode.NotFound;
+                _response.IsSuccess = false;
+                return NotFound(_response);
+            }
+            try
+            {
+                if (ModelState.IsValid)
+                {
+                    if (bookResponseDto == null)
+                    {
+                        _response.StatusCode = HttpStatusCode.BadRequest;
+                        _response.IsSuccess = false;
+                        return BadRequest();
+                    }
+                   
+                    book.Name = bookResponseDto.Name;
+                    book.Description = bookResponseDto.Description;
+                    if (bookResponseDto.File != null && bookResponseDto.File.Length > 0)
+                    {
+                        string filename = $"{Guid.NewGuid()}{Path.GetExtension(bookResponseDto.File.FileName)}";
+                        await _blobService.DeleteBlob(book.Image.Split('/').Last(), SD.SD_Storage_Container);
+                        book.Image = await _blobService.UploadBlob(filename, SD.SD_Storage_Container, bookResponseDto.File);
+                    }
+                    book.AuthorId = bookResponseDto.AuthorId;
+                    book.CreatedAt = DateTime.Now.ToString("dddd, dd MMMM yyyy");
+                    book.CreatedBy = bookResponseDto.CreatedBy;
+                    book.BookCategories.Clear();
+                    foreach (var item in bookResponseDto.CategoryId)
+                    {
+                        book.BookCategories.Add(new BookCategory()
+                        {
+                            Book = book,
+                            CategoryId = item,
+                        });
+                    }
+                    _db.Books.Update(book);
+                    _db.SaveChanges();
+                    _response.Result = book;
+                    _response.StatusCode = HttpStatusCode.OK;
+                    return Ok(_response);
+                }
+                else
+                {
+                    _response.IsSuccess = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.ErrorMessages = new List<string>() { ex.Message };
+            }
+            return Ok(_response);
+        }
+
+        [HttpDelete("{id:int}")]
+        public async Task<ActionResult<ApiResponse>> DeleteBook(int id)
+        {
+            try
+            {
+                if (id == 0)
+                {
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+                    _response.IsSuccess = false;
+                    return BadRequest(_response);
+                }
+                var book = await _db.Books
+                    .Include(b => b.BookCategories)
+                    .ThenInclude(c => c.Category)
+                    .FirstOrDefaultAsync(b => b.Id == id);
+                if (book == null)
+                {
+                    _response.StatusCode = HttpStatusCode.NotFound;
+                    _response.IsSuccess = false;
+                    return BadRequest(_response);
+                }
+                await _blobService.DeleteBlob(book.Image.Split('/').Last(), SD.SD_Storage_Container);
+                int milliseconds = 1000;
+                Thread.Sleep(milliseconds);
+
+                _db.Books.Remove(book);
+                _db.SaveChanges();
+                _response.StatusCode=HttpStatusCode.NoContent;
+                return Ok(_response);
+            }
+            catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.ErrorMessages = new List<string>() { ex.ToString() };
+            }
+            return _response;
+        }
     }
 }

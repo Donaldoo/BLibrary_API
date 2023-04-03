@@ -23,9 +23,12 @@ namespace LibraryAPI.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAuthor()
+        public async Task<IActionResult> GetAuthors()
         {
-            _response.Result = await _db.Authors.Include(a => a.Books).ToListAsync();
+            _response.Result = await _db.Authors
+                .Include(a => a.Books)
+                .OrderByDescending(a => a.Books.Count)
+                .ToListAsync();
             _response.StatusCode = HttpStatusCode.OK;
             return Ok(_response);
         }
@@ -51,8 +54,25 @@ namespace LibraryAPI.Controllers
             return Ok(_response);
         }
 
+        [HttpGet("/authors/with-book-count")]
+        public async Task<ActionResult<IEnumerable<AuthorWithBookCount>>> GetAuthorsWithBookCount()
+        {
+            var authors = await _db.Authors.Select(a => new AuthorWithBookCount
+            {
+                Id = a.Id,
+                Name = a.Name,
+                Bio = a.Bio,
+                CreatedAt = a.CreatedAt,
+                CreatedBy = a.CreatedBy,
+                BookCount = a.Books.Count()
+            })
+            .OrderByDescending(a => a.BookCount)
+            .ToListAsync();
 
-        [Authorize]
+            return Ok(authors);
+        }
+
+
         [HttpPost]
         public async Task<ActionResult<ApiResponse>> CreateAuthor([FromForm] AuthorCreateDTO authorCreateDTO)
         {
@@ -66,13 +86,13 @@ namespace LibraryAPI.Controllers
                         _response.IsSuccess = false;
                         return BadRequest(_response);
                     }
-                    // var userName = User.Identity.Name;
+
                     Author authorToCreate = new()
                     {
                         Name = authorCreateDTO.Name,
                         Bio = authorCreateDTO.Bio,
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedBy = User.Identity.Name
+                        CreatedAt = DateTime.UtcNow.ToString("dddd, dd MMMM yyyy"),
+                        CreatedBy = authorCreateDTO.CreatedBy,
                     };
                     _db.Authors.Add(authorToCreate);
                     _db.SaveChanges();
@@ -116,8 +136,8 @@ namespace LibraryAPI.Controllers
                     }
                     authorFromDb.Name = authorUpdateDTO.Name;
                     authorFromDb.Bio = authorUpdateDTO.Bio;
-                    authorFromDb.CreatedAt = DateTime.UtcNow;
-                    authorFromDb.CreatedBy = "temporary";
+                    authorFromDb.CreatedAt = DateTime.UtcNow.ToString("dddd, dd MMMM yyyy");
+                    authorFromDb.CreatedBy = authorUpdateDTO.CreatedBy;
 
                     _db.Authors.Update(authorFromDb);
                     _db.SaveChanges();

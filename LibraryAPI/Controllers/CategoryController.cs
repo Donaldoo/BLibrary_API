@@ -51,9 +51,9 @@ namespace LibraryAPI.Controllers
             return Ok(_response);
         }
 
-        [Authorize]
+
         [HttpPost]
-        public async Task<ActionResult<ApiResponse>> CreateCategory([FromForm] CategoryCreateDTO categoryCreateDTO)
+        public async Task<ActionResult<ApiResponse>> CreateCategory([FromBody] CategoryCreateDto categoryCreateDTO)
         {
             try
             {
@@ -65,14 +65,13 @@ namespace LibraryAPI.Controllers
                         _response.IsSuccess = false;
                         return BadRequest();
                     }
-                    var userName = User.Identity.Name;
                     Category categoryToCreate = new()
                     {
                         Name = categoryCreateDTO.Name,
                         Priority = categoryCreateDTO.Priority,
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedBy = userName
-                    };
+                        CreatedAt = DateTime.UtcNow.ToString("dddd, dd MMMM yyyy"),
+                        CreatedBy = categoryCreateDTO.CreatedBy
+                };
                     _db.Categories.Add(categoryToCreate);
                     _db.SaveChanges();
                     _response.Result = categoryToCreate;
@@ -107,7 +106,7 @@ namespace LibraryAPI.Controllers
                         _response.IsSuccess = false;
                         return BadRequest();
                     }
-                    var userName = User.Identity.Name;
+
                     Category categoryFromDb = await _db.Categories.FindAsync(id);
                     if (categoryFromDb == null)
                     {
@@ -118,8 +117,8 @@ namespace LibraryAPI.Controllers
 
                     categoryFromDb.Name = categoryUpdateDTO.Name;
                     categoryFromDb.Priority = categoryUpdateDTO.Priority;
-                    categoryFromDb.CreatedAt = DateTime.UtcNow;
-                    categoryFromDb.CreatedBy = userName;
+                    categoryFromDb.CreatedAt = DateTime.UtcNow.ToString("dddd, dd MMMM yyyy");
+                    categoryFromDb.CreatedBy = categoryUpdateDTO.CreatedBy;
 
                     _db.Categories.Update(categoryFromDb);
                     _db.SaveChanges();
