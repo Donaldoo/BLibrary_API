@@ -1,6 +1,7 @@
 ﻿using LibraryAPI.Data;
 using LibraryAPI.Models;
 using LibraryAPI.Models.Dto;
+using LibraryAPI.Utility;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -54,7 +55,7 @@ namespace LibraryAPI.Controllers
             return Ok(_response);
         }
 
-        [HttpGet("/authors/with-book-count")]
+        [HttpGet("/authors-with-book-count")]
         public async Task<ActionResult<IEnumerable<AuthorWithBookCount>>> GetAuthorsWithBookCount()
         {
             var authors = await _db.Authors.Select(a => new AuthorWithBookCount
@@ -74,6 +75,7 @@ namespace LibraryAPI.Controllers
 
 
         [HttpPost]
+        [Authorize(Roles = SD.Role_Admin)]
         public async Task<ActionResult<ApiResponse>> CreateAuthor([FromForm] AuthorCreateDTO authorCreateDTO)
         {
             try
@@ -114,6 +116,7 @@ namespace LibraryAPI.Controllers
         }
 
         [HttpPut("{id:int}")]
+        [Authorize(Roles = SD.Role_Admin)]
         public async Task<ActionResult<ApiResponse>> UpdateAuthor(int id, [FromForm] AuthorUpdateDTO authorUpdateDTO)
         {
             try
@@ -159,6 +162,7 @@ namespace LibraryAPI.Controllers
         }
 
         [HttpDelete("{id:int}")]
+        [Authorize(Roles = SD.Role_Admin)]
         public async Task<ActionResult<ApiResponse>> DeleteAuthor(int id)
         {
             try

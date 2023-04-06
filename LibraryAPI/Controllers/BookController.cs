@@ -3,6 +3,7 @@ using LibraryAPI.Models;
 using LibraryAPI.Models.Dto;
 using LibraryAPI.Services;
 using LibraryAPI.Utility;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -83,6 +84,7 @@ namespace LibraryAPI.Controllers
 
 
         [HttpPost]
+        [Authorize]
         public async Task<ActionResult<ApiResponse>> CreateBook([FromForm] BookResponseDto bookResponseDto)
         {
             try
@@ -135,7 +137,8 @@ namespace LibraryAPI.Controllers
         }
 
         [HttpPut("{id:int}")]
-        public async Task<ActionResult<ApiResponse>> UpdateBook(int id, [FromBody] BookResponseDto bookResponseDto)
+        [Authorize]
+        public async Task<ActionResult<ApiResponse>> UpdateBook(int id, [FromForm] BookUpdateDto bookUpdateDto)
         {
             if (id == 0)
             {
@@ -151,32 +154,32 @@ namespace LibraryAPI.Controllers
             {
                 _response.StatusCode = HttpStatusCode.NotFound;
                 _response.IsSuccess = false;
-                return NotFound(_response);
+                return BadRequest(_response);
             }
             try
             {
                 if (ModelState.IsValid)
                 {
-                    if (bookResponseDto == null)
+                    if (bookUpdateDto == null)
                     {
                         _response.StatusCode = HttpStatusCode.BadRequest;
                         _response.IsSuccess = false;
                         return BadRequest();
                     }
-                   
-                    book.Name = bookResponseDto.Name;
-                    book.Description = bookResponseDto.Description;
-                    if (bookResponseDto.File != null && bookResponseDto.File.Length > 0)
+                    book.Id = bookUpdateDto.Id;
+                    book.Name = bookUpdateDto.Name;
+                    book.Description = bookUpdateDto.Description;
+                    if (bookUpdateDto.File != null && bookUpdateDto.File.Length > 0)
                     {
-                        string filename = $"{Guid.NewGuid()}{Path.GetExtension(bookResponseDto.File.FileName)}";
+                        string filename = $"{Guid.NewGuid()}{Path.GetExtension(bookUpdateDto.File.FileName)}";
                         await _blobService.DeleteBlob(book.Image.Split('/').Last(), SD.SD_Storage_Container);
-                        book.Image = await _blobService.UploadBlob(filename, SD.SD_Storage_Container, bookResponseDto.File);
+                        book.Image = await _blobService.UploadBlob(filename, SD.SD_Storage_Container, bookUpdateDto.File);
                     }
-                    book.AuthorId = bookResponseDto.AuthorId;
+                    book.AuthorId = bookUpdateDto.AuthorId;
                     book.CreatedAt = DateTime.Now.ToString("dddd, dd MMMM yyyy");
-                    book.CreatedBy = bookResponseDto.CreatedBy;
+                    book.CreatedBy = bookUpdateDto.CreatedBy;
                     book.BookCategories.Clear();
-                    foreach (var item in bookResponseDto.CategoryId)
+                    foreach (var item in bookUpdateDto.CategoryId)
                     {
                         book.BookCategories.Add(new BookCategory()
                         {
@@ -204,6 +207,7 @@ namespace LibraryAPI.Controllers
         }
 
         [HttpDelete("{id:int}")]
+        [Authorize]
         public async Task<ActionResult<ApiResponse>> DeleteBook(int id)
         {
             try

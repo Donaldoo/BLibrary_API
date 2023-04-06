@@ -1,6 +1,7 @@
 ﻿using LibraryAPI.Data;
 using LibraryAPI.Models;
 using LibraryAPI.Models.Dto;
+using LibraryAPI.Utility;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -53,6 +54,7 @@ namespace LibraryAPI.Controllers
 
 
         [HttpPost]
+        [Authorize(Roles = SD.Role_Admin)]
         public async Task<ActionResult<ApiResponse>> CreateCategory([FromBody] CategoryCreateDto categoryCreateDTO)
         {
             try
@@ -81,6 +83,9 @@ namespace LibraryAPI.Controllers
                 else
                 {
                     _response.IsSuccess = false;
+                    _response.StatusCode= HttpStatusCode.BadRequest;
+                    _response.ErrorMessages = new List<string>() { "Invalid data" };
+                    return BadRequest(_response);
                 }
             }
             catch (Exception ex)
@@ -92,9 +97,9 @@ namespace LibraryAPI.Controllers
         }
 
 
-        [Authorize]
         [HttpPut("{id:int}")]
-        public async Task<ActionResult<ApiResponse>> UpdateCategory(int id, [FromForm] CategoryUpdateDTO categoryUpdateDTO)
+        [Authorize(Roles = SD.Role_Admin)]
+        public async Task<ActionResult<ApiResponse>> UpdateCategory(int id, [FromBody] CategoryUpdateDTO categoryUpdateDTO)
         {
             try
             {
@@ -140,6 +145,7 @@ namespace LibraryAPI.Controllers
 
 
         [HttpDelete("{id:int}")]
+        [Authorize(Roles = SD.Role_Admin)]
         public async Task<ActionResult<ApiResponse>> DeleteCategory(int id)
         {
             try
